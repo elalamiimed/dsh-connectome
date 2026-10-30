@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "连接图谱",
+    "description": "用 d3-force 模拟、以 Canvas 以 60fps 渲染的工作区文件与 import/require 依赖关系交互式关系图。"
+  }
+}

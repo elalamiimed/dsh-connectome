@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Inlined third-party distributions are build inputs; keep them byte-stable.
+vendor/*.min.js -diff
+client.js -diff

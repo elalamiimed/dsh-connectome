@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Connectome",
+    "description": "An interactive canvas graph of the workspace's files and their import/require dependencies, simulated with d3-force and rendered at 60fps."
+  }
+}

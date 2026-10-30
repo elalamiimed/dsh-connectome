@@ -1,0 +1,86 @@
+{
+  "name": "dsh-connectome",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Connectome: an interactive, hardware-accelerated canvas map of a DSH workspace's files and their import/require relationships, rendered with d3-force inside the Web UI.",
+  "license": "MIT",
+  "author": "elalamiimed (https://github.com/elalamiimed)",
+  "homepage": "https://github.com/elalamiimed/dsh-connectome#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elalamiimed/dsh-connectome.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elalamiimed/dsh-connectome/issues"
+  },
+  "icon": "./icon.svg",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18",
+    "dsh": ">=0.2.1-rc.2"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "client.source.js",
+    "build.mjs",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "vendor/*.min.js",
+    "vendor/LICENSE-d3.txt",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/preview.svg"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "plugin",
+    "graph",
+    "dependency-graph",
+    "force-directed",
+    "d3-force",
+    "canvas",
+    "visualization",
+    "codebase-map"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/scan.test.mjs && node test/artifact.test.mjs && node test/package.test.mjs",
+    "check": "node --check index.js && node --check client.js",
+    "prepublishOnly": "node build.mjs && npm run check && npm test"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "d3-force": "^3.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  }
+}

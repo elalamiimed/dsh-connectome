@@ -1,0 +1,9 @@
+# dsh-connectome bundle patch layer.
+#
+# The Host half is a normal Loader row: the package root `index.js` scans the
+# workspace and serves the graph over a same-origin HTTP route.
+# The browser half is composed from package.json `dsh.client` (platform "web",
+# bundle export "./client") and therefore needs no row of its own.
+- insert:
+    - id: dsh-connectome
+      name: dsh-connectome
