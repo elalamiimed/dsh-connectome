@@ -73,6 +73,11 @@ dsh plugin --profile desktop add dsh-connectome
 dsh plugin --profile desktop add github:elalamiimed/dsh-connectome
 ```
 
+> Mirror tip: if `npm config get registry` points at a mirror that has not synced
+> this release yet (for example `registry.npmmirror.com` right after a publish), the
+> install can resolve an older or placeholder version. Point npm at
+> `https://registry.npmjs.org` for that install, or wait for the mirror to sync.
+
 ### Manual / development install
 
 ```bash
