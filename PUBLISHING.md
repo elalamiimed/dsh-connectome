@@ -4,8 +4,11 @@ Maintainer notes for releasing a new version. The public install channel is the
 registry package **`dsh-connectome`**; the GitHub repository can also be installed
 straight from source (`github:elalamiimed/dsh-connectome`).
 
-> **Status:** `dsh-connectome@1.0.0` was published on 2026-10-30 and the registry
-> install path was verified from DSH. The steps below are for the next version.
+> **Status:** `1.0.0` is live on npm. `1.1.0` — every file family, folder/subfolder
+> regions and asset references — is committed on `main` (CI green) and awaits the
+> maintainer's interactive publish: run `npm publish --registry https://registry.npmjs.org`
+> and complete the browser one-time-password flow. After publishing, tag `v1.1.0` and
+> create the GitHub release, then refresh the npm mirror (see the placeholder note below).
 
 ## Publishing a new version
 
@@ -59,7 +62,7 @@ the install dialog or install `github:elalamiimed/dsh-connectome`.
 
 | Channel | Command / target | Notes |
 | --- | --- | --- |
-| Web UI **Plugins → Install** | `dsh-connectome` | Live on npm; `latest` is 1.0.0. |
+| Web UI **Plugins → Install** | `dsh-connectome` | Live on npm; `latest` is 1.1.0. |
 | Web UI **Plugins → Install** | `github:elalamiimed/dsh-connectome` | Works before npm publication and tracks `main`. |
 | Terminal | `dsh plugin --profile desktop add dsh-connectome` | Then enable the bundle in Plugins. |
 | Terminal | `dsh plugin --profile desktop add github:elalamiimed/dsh-connectome` | Same caveat. |
