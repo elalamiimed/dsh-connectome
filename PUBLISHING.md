@@ -1,18 +1,20 @@
 # Publishing Connectome
 
 Maintainer notes for releasing a new version. The public install channel is the
-registry package **`dsh-connectome`**; the GitHub repository can already be installed
+registry package **`dsh-connectome`**; the GitHub repository can also be installed
 straight from source (`github:elalamiimed/dsh-connectome`).
 
-## Before the first npm publish
+> **Status:** `dsh-connectome@1.0.0` was published on 2026-10-30 and the registry
+> install path was verified from DSH. The steps below are for the next version.
 
-The npm name `dsh-connectome` must be owned by the publishing account. The package is
+## Publishing a new version
+
+The npm name `dsh-connectome` is owned by the publishing account. The package is
 unscoped, public, and `publishConfig.access: public` is already set.
 
 ```bash
-npm login                      # account that will own dsh-connectome
-npm view dsh-connectome name   # 404 = free (at the time of writing it was free)
-npm publish                    # runs prepublishOnly: build + check + tests
+npm login --registry=https://registry.npmjs.org   # account that owns dsh-connectome
+npm publish --registry=https://registry.npmjs.org --access public
 ```
 
 The `prepublishOnly` script rebuilds `client.js`, syntax-checks both halves, and runs

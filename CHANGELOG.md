@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [1.0.0] — 2026-10-30
 
-First public release.
+First public release, published to npm as
+[`dsh-connectome@1.0.0`](https://www.npmjs.com/package/dsh-connectome).
 
 ### Added
 

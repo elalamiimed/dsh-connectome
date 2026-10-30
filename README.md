@@ -1,5 +1,6 @@
 # Connectome
 
+[![npm](https://img.shields.io/npm/v/dsh-connectome?color=2563EB)](https://www.npmjs.com/package/dsh-connectome)
 [![CI](https://github.com/elalamiimed/dsh-connectome/actions/workflows/ci.yml/badge.svg)](https://github.com/elalamiimed/dsh-connectome/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-16A34A.svg)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2-3B82F6.svg)](https://github.com/deepseek-ai/deepseek-harness)
@@ -53,11 +54,12 @@ Connectome is a DSH **bundle** plugin: installing it adds a Host row (workspace 
 Open the sidebar's **Plugins** page, choose **Install**, and enter one of:
 
 ```text
-dsh-connectome                                   # once published on npm
-github:elalamiimed/dsh-connectome                # straight from GitHub (works now)
+dsh-connectome                                   # npm (recommended)
+github:elalamiimed/dsh-connectome                # straight from GitHub
 ```
 
-The plugin manager enables the bundle after a successful install. Open the sidebar
+The npm package is live at **[npmjs.com/package/dsh-connectome](https://www.npmjs.com/package/dsh-connectome)**;
+the plugin manager enables the bundle after a successful install. Open the sidebar
 panel list's **More** menu and pick **🧠 Connectome**.
 
 ### From a terminal
@@ -66,9 +68,9 @@ The DSH CLI forwards package operations to the profile; then enable the bundle i
 **Plugins** (or keep using the Web UI above, which does both steps):
 
 ```bash
-dsh plugin --profile desktop add github:elalamiimed/dsh-connectome
-# once published on npm:
 dsh plugin --profile desktop add dsh-connectome
+# or straight from GitHub:
+dsh plugin --profile desktop add github:elalamiimed/dsh-connectome
 ```
 
 ### Manual / development install
