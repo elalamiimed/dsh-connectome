@@ -7,6 +7,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +16,10 @@ permissions:
 jobs:
   publish:
     name: Publish to npm
+    # Set the repository variable NPM_PUBLISH_ENABLED=true (and the NPM_TOKEN secret)
+    # when the account is ready to publish. Until then tag pushes succeed without
+    # publishing instead of leaving a failed run in the Actions tab.
+    if: vars.NPM_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

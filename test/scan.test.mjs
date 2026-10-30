@@ -15,10 +15,11 @@ import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const { apply, inject, name, scanWorkspace } = await import('../index.js')
 
-const TEST_DIR = import.meta.dirname
+const TEST_DIR = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE_ROOT = path.join(TEST_DIR, `.tmp-scan-${process.pid}-${Date.now()}`)
 const GRAPH_PATH = '/connectome/api/graph'
 const LARGE_FILE_BYTES = 600 * 1024

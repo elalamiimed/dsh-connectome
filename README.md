@@ -184,7 +184,8 @@ npm pack --dry-run # inspect exactly what npm would publish
 
 `npm install` is only needed to rebuild `client.js` from a different d3-force copy:
 `node build.mjs --modules <node_modules dir>` looks there after `vendor/`.
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the project layout and review rules.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the project layout and review rules, and
+[`PUBLISHING.md`](PUBLISHING.md) for the maintainer release flow.
 
 ## Styling note
 
