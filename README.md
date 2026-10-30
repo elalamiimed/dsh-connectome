@@ -73,10 +73,17 @@ dsh plugin --profile desktop add dsh-connectome
 dsh plugin --profile desktop add github:elalamiimed/dsh-connectome
 ```
 
-> Mirror tip: if `npm config get registry` points at a mirror that has not synced
-> this release yet (for example `registry.npmmirror.com` right after a publish), the
-> install can resolve an older or placeholder version. Point npm at
-> `https://registry.npmjs.org` for that install, or wait for the mirror to sync.
+> **Troubleshooting — `dsh-connectome declares no dsh.bundle`.** While a brand-new
+> npm package is being reviewed, npm can hold it at a `0.0.0-stage` placeholder that
+> declares no bundle. A mirror (for example `registry.npmmirror.com`) may keep serving
+> that placeholder for a while after the real release lands, and the plugin manager's
+> pre-install check then refuses the package with this message. Choose **Official npm
+> registry** in the install dialog's registry selector, retry after the mirror syncs,
+> or install the `github:` spec instead. To see what a registry currently has:
+>
+> ```bash
+> npm view dsh-connectome dist-tags --registry https://registry.npmmirror.com
+> ```
 
 ### Manual / development install
 

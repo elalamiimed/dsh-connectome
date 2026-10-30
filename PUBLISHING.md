@@ -36,11 +36,30 @@ the scanner/artifact/package test suites, so a broken artifact cannot be publish
 
 The workflow checks that the tag (`vX.Y.Z`) matches `package.json` before publishing.
 
+## npm staged publishing and mirror placeholders
+
+For a brand-new package, npm may first create a `0.0.0-stage` placeholder version
+while the release is being reviewed. That placeholder has no `dsh.bundle`, so an
+install that resolves it fails with `dsh-connectome declares no dsh.bundle`. npmjs
+switches `latest` to the real version once the release lands; mirrors can lag.
+
+If `registry.npmmirror.com` still advertises the placeholder, force a sync and verify:
+
+```bash
+curl -X PUT https://registry.npmmirror.com/dsh-connectome/sync
+# {"ok":true,"logId":"..."} — the version endpoint is available right away,
+# the package-level metadata may take a few more minutes to clear CDN caches
+pnpm view dsh-connectome version --registry https://registry.npmmirror.com
+```
+
+Until a fresh mirror serves the release, users can pick **Official npm registry** in
+the install dialog or install `github:elalamiimed/dsh-connectome`.
+
 ## Install channels users see
 
 | Channel | Command / target | Notes |
 | --- | --- | --- |
-| Web UI **Plugins → Install** | `dsh-connectome` | After the first npm publish. |
+| Web UI **Plugins → Install** | `dsh-connectome` | Live on npm; `latest` is 1.0.0. |
 | Web UI **Plugins → Install** | `github:elalamiimed/dsh-connectome` | Works before npm publication and tracks `main`. |
 | Terminal | `dsh plugin --profile desktop add dsh-connectome` | Then enable the bundle in Plugins. |
 | Terminal | `dsh plugin --profile desktop add github:elalamiimed/dsh-connectome` | Same caveat. |
