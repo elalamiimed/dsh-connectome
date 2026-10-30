@@ -5,10 +5,17 @@
  * HTTP endpoint that the browser half (`client.js`) calls to render a project
  * dependency graph.
  *
+ * Every regular workspace file becomes a node (code, documents, PDFs, images,
+ * data, media, fonts, archives …), each tagged with a coarse `kind`; the folder
+ * tree is returned as well so the Client can draw folder/subfolder regions.
+ * Text formats are parsed for references: imports/requires, styles, HTML and
+ * Markdown links, CSS `url(...)` assets and Python imports. A reference becomes
+ * a link whenever it resolves to another scanned file, whatever its type.
+ *
  * HTTP API (exact route, registered in {@link apply}):
  *   POST /connectome/api/graph
  *   Request body: optional JSON `{ "root": "<absolute directory>" }`
- *   Success 200: { ok: true, root, roots, nodes, links, stats }
+ *   Success 200: { ok: true, root, roots, nodes, links, folders, stats }
  *   Failure:     { ok: false, error: { code, message } }
  *
  * The scanner itself ({@link scanWorkspace}) is exported as a pure async
@@ -87,19 +94,66 @@ const SCAN_DURATION_LIMIT_MS = 8_000
 /* Scanner tables                                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Extensions that become graph nodes (text / source files only; no `.svg`). */
-const NODE_EXTENSIONS = new Set([
-  '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts',
-  '.vue', '.svelte', '.astro',
-  '.css', '.scss', '.sass', '.less', '.styl',
-  '.html', '.htm',
-  '.md', '.mdx',
-  '.json', '.jsonc',
-  '.yml', '.yaml', '.toml',
-  '.py', '.rb', '.go', '.rs', '.java', '.kt', '.kts', '.cs', '.php',
-  '.c', '.h', '.cc', '.cpp', '.hpp',
-  '.sh', '.bash', '.zsh', '.ps1',
-  '.sql', '.graphql', '.gql', '.proto', '.tex', '.xml',
+/**
+ * Coarse file families. Every scanned file becomes a node; the Client colors
+ * and shapes neurons by `kind` and the dialog legend counts them.
+ * @type {readonly string[]}
+ */
+const FILE_KINDS = Object.freeze(['code', 'doc', 'data', 'image', 'media', 'archive', 'font', 'other'])
+
+/** Extension (lowercase, with dot) → coarse file kind. */
+const KIND_BY_EXTENSION = new Map([
+  // code: scripts, styles and markup
+  ['.js', 'code'], ['.jsx', 'code'], ['.mjs', 'code'], ['.cjs', 'code'],
+  ['.ts', 'code'], ['.tsx', 'code'], ['.mts', 'code'], ['.cts', 'code'],
+  ['.vue', 'code'], ['.svelte', 'code'], ['.astro', 'code'],
+  ['.css', 'code'], ['.scss', 'code'], ['.sass', 'code'], ['.less', 'code'], ['.styl', 'code'],
+  ['.html', 'code'], ['.htm', 'code'],
+  ['.py', 'code'], ['.rb', 'code'], ['.go', 'code'], ['.rs', 'code'],
+  ['.java', 'code'], ['.kt', 'code'], ['.kts', 'code'], ['.cs', 'code'], ['.php', 'code'],
+  ['.c', 'code'], ['.h', 'code'], ['.cc', 'code'], ['.cpp', 'code'], ['.hpp', 'code'],
+  ['.sh', 'code'], ['.bash', 'code'], ['.zsh', 'code'], ['.ps1', 'code'],
+  ['.sql', 'code'], ['.graphql', 'code'], ['.gql', 'code'], ['.proto', 'code'],
+  // documents: prose plus what a reviewer opens to read
+  ['.md', 'doc'], ['.mdx', 'doc'], ['.txt', 'doc'], ['.rst', 'doc'], ['.tex', 'doc'],
+  ['.pdf', 'doc'], ['.doc', 'doc'], ['.docx', 'doc'], ['.ppt', 'doc'], ['.pptx', 'doc'],
+  ['.odt', 'doc'], ['.ods', 'doc'], ['.odp', 'doc'], ['.rtf', 'doc'], ['.epub', 'doc'],
+  // structured data and configuration
+  ['.json', 'data'], ['.jsonc', 'data'], ['.json5', 'data'], ['.yml', 'data'], ['.yaml', 'data'],
+  ['.toml', 'data'], ['.xml', 'data'], ['.ini', 'data'], ['.csv', 'data'], ['.tsv', 'data'],
+  ['.ipynb', 'data'], ['.db', 'data'], ['.sqlite', 'data'], ['.parquet', 'data'],
+  // images
+  ['.svg', 'image'], ['.png', 'image'], ['.jpg', 'image'], ['.jpeg', 'image'], ['.gif', 'image'],
+  ['.webp', 'image'], ['.avif', 'image'], ['.bmp', 'image'], ['.ico', 'image'],
+  ['.tif', 'image'], ['.tiff', 'image'], ['.heic', 'image'], ['.heif', 'image'],
+  // audio / video
+  ['.mp3', 'media'], ['.wav', 'media'], ['.ogg', 'media'], ['.m4a', 'media'], ['.flac', 'media'],
+  ['.aac', 'media'], ['.opus', 'media'], ['.mp4', 'media'], ['.webm', 'media'], ['.mov', 'media'],
+  ['.avi', 'media'], ['.mkv', 'media'], ['.m4v', 'media'],
+  // archives and package containers
+  ['.zip', 'archive'], ['.tar', 'archive'], ['.gz', 'archive'], ['.tgz', 'archive'],
+  ['.bz2', 'archive'], ['.xz', 'archive'], ['.7z', 'archive'], ['.rar', 'archive'],
+  ['.jar', 'archive'], ['.whl', 'archive'],
+  // fonts
+  ['.woff', 'font'], ['.woff2', 'font'], ['.ttf', 'font'], ['.otf', 'font'], ['.eot', 'font'],
+])
+
+/** Extensionless files whose name identifies the kind. */
+const KIND_BY_NAME = new Map([
+  ['dockerfile', 'code'],
+  ['makefile', 'code'],
+  ['procfile', 'code'],
+  ['gemfile', 'code'],
+  ['rakefile', 'code'],
+  ['justfile', 'code'],
+  ['license', 'doc'],
+  ['licence', 'doc'],
+  ['copying', 'doc'],
+  ['notice', 'doc'],
+  ['readme', 'doc'],
+  ['changelog', 'doc'],
+  ['authors', 'doc'],
+  ['contributors', 'doc'],
 ])
 
 /** Extensions parsed for import/export/require specifiers. */
@@ -145,9 +199,10 @@ const IGNORED_DIRECTORY_NAMES = new Set([
   '.terraform', '.yarn', 'bower_components', 'jspm_packages', 'tmp', 'temp',
 ])
 
-/** Lockfiles / generated files that never become nodes. */
+/** Lockfiles, generated files and OS junk that never become nodes. */
 const IGNORED_FILE_NAMES = new Set([
   'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json',
+  '.ds_store', 'thumbs.db', 'desktop.ini',
 ])
 
 /* -------------------------------------------------------------------------- */
@@ -171,6 +226,17 @@ const STYLE_IMPORT_RE = /@(?:import|use|forward)\s+(?:url\(\s*)?['"]([^'"]+)['"]
 const SCRIPT_SRC_RE = /<script\b[^>]*\bsrc\s*=\s*['"]([^'"]+)['"]/gi
 // `<link href="...">`.
 const LINK_HREF_RE = /<link\b[^>]*\bhref\s*=\s*['"]([^'"]+)['"]/gi
+// `<img src>`, `<source src>`, `<iframe src>`, `<embed src>`, `<video src>`,
+// `<audio src>`, `<track src>`: markup asset references.
+const ASSET_SRC_RE = /<(?:img|source|iframe|embed|video|audio|track)\b[^>]*\bsrc\s*=\s*['"]([^'"]+)['"]/gi
+// `<a href>` / `<area href>`: navigational references, often to documents.
+const ANCHOR_HREF_RE = /<(?:a|area)\b[^>]*\bhref\s*=\s*['"]([^'"]+)['"]/gi
+// `<object data="...">`.
+const OBJECT_DATA_RE = /<object\b[^>]*\bdata\s*=\s*['"]([^'"]+)['"]/gi
+// `<video poster="...">`.
+const VIDEO_POSTER_RE = /<video\b[^>]*\bposter\s*=\s*['"]([^'"]+)['"]/gi
+// CSS `url(...)` references: images, fonts, cursors.
+const CSS_URL_RE = /url\(\s*(?:['"])?([^'")]+?)(?:['"])?\s*\)/gi
 // Markdown links and images: `[x](./path)` / `![x](../path)`.
 const MARKDOWN_LINK_RE = /\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)/g
 // `from .helper import x` / `from ..pkg.mod import x`.
@@ -279,6 +345,7 @@ async function handleGraphRequest(ctx, req, res, cache, pending) {
       roots: selection.roots.map((entry) => ({ path: entry.path, title: entry.title })),
       nodes: graph.nodes,
       links: graph.links,
+      folders: graph.folders,
       stats: graph.stats,
     })
   } catch (error) {
@@ -580,10 +647,11 @@ async function loadGraph(cache, pending, root) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * @typedef {{ id: string, label: string, ext: string, size: number, dir: string }} GraphNode
+ * @typedef {{ id: string, label: string, ext: string, size: number, dir: string, kind: string }} GraphNode
  * @typedef {{ source: string, target: string, kind: string }} GraphLink
- * @typedef {{ files: number, scanned: number, links: number, truncated: boolean, durationMs: number }} GraphStats
- * @typedef {{ root: string, nodes: GraphNode[], links: GraphLink[], stats: GraphStats }} ScanGraph
+ * @typedef {{ id: string, parent: string | null, depth: number, files: number, total: number }} GraphFolder
+ * @typedef {{ files: number, folders: number, scanned: number, links: number, truncated: boolean, durationMs: number, kinds: Record<string, number> }} GraphStats
+ * @typedef {{ root: string, nodes: GraphNode[], links: GraphLink[], folders: GraphFolder[], stats: GraphStats }} ScanGraph
  * @typedef {{ maxFiles: number, maxEntries: number, maxParseFiles: number, maxTextBytes: number, maxDurationMs: number }} ScanLimits
  */
 
@@ -591,10 +659,12 @@ async function loadGraph(cache, pending, root) {
  * Scan a directory and return its file/dependency graph.
  *
  * Pure and deterministic: ids are POSIX paths relative to the canonical root,
- * nodes are sorted by id and links by source then target. Only relative,
- * root-relative and `@/`/`~/` specifiers become links; bare package names and
- * anything escaping the root are ignored. Unreadable files or directories are
- * skipped instead of failing the scan.
+ * nodes are sorted by id, folders by id, and links by source then target. Every
+ * regular file becomes a node; only relative, root-relative and `@/`/`~/`
+ * specifiers become links (bare package names and anything escaping the root are
+ * ignored), and the resolver accepts any scanned file type, so documents,
+ * images, PDFs and other assets appear whenever a text file references them.
+ * Unreadable files or directories are skipped instead of failing the scan.
  *
  * @param {string} root workspace directory (absolute or relative to `cwd`).
  * @param {{ maxFiles?: number, maxEntries?: number, maxParseFiles?: number, maxTextBytes?: number, maxDurationMs?: number }} [options]
@@ -647,9 +717,11 @@ export async function scanWorkspace(root, options = {}) {
     ext: file.ext,
     size: file.size,
     dir: path.posix.dirname(file.id),
+    kind: kindOfFile(file.id),
   }))
 
   const nodeIds = new Set(state.files.map((file) => file.id))
+  const folders = buildFolderIndex(state.files)
 
   /** @type {Array<{ id: string, absolutePath: string, size: number, ext: string }>} */
   const parseTargets = state.files.filter((file) => PARSE_EXTENSIONS.has(file.ext) && file.size <= MAX_NODE_BYTES)
@@ -689,14 +761,71 @@ export async function scanWorkspace(root, options = {}) {
     root: canonicalRoot,
     nodes,
     links,
+    folders,
     stats: {
       files: nodes.length,
+      folders: folders.length,
       scanned,
       links: links.length,
       truncated: state.truncated,
       durationMs: Date.now() - startedAt,
+      kinds: countKinds(nodes),
     },
   }
+}
+
+/**
+ * Count nodes per coarse file kind, keeping every declared kind so the Client
+ * legend shape is stable across scans.
+ *
+ * @param {GraphNode[]} nodes scanned nodes.
+ * @returns {Record<string, number>} kind → count.
+ */
+function countKinds(nodes) {
+  /** @type {Record<string, number>} */
+  const counts = {}
+  for (const kind of FILE_KINDS) counts[kind] = 0
+  for (const node of nodes) {
+    const kind = node.kind
+    counts[kind] = (counts[kind] || 0) + 1
+  }
+  return counts
+}
+
+/**
+ * Build the folder index visible in the graph: every directory that contains at
+ * least one scanned file, directly or below it, with its parent and counts.
+ *
+ * @param {Array<{ id: string }>} files scanned files (POSIX-relative ids).
+ * @returns {GraphFolder[]} folders sorted by id.
+ */
+function buildFolderIndex(files) {
+  /** @type {Map<string, GraphFolder>} */
+  const folders = new Map()
+  for (const file of files) {
+    const dir = path.posix.dirname(file.id)
+    if (dir === '' || dir === '.') continue
+    const parts = dir.split('/')
+    let current = ''
+    for (let depth = 0; depth < parts.length; depth += 1) {
+      current = depth === 0 ? parts[0] : `${current}/${parts[depth]}`
+      let folder = folders.get(current)
+      if (folder === undefined) {
+        folder = {
+          id: current,
+          parent: depth === 0 ? null : parts.slice(0, depth).join('/'),
+          depth: depth + 1,
+          files: 0,
+          total: 0,
+        }
+        folders.set(current, folder)
+      }
+      folder.total += 1
+    }
+    const leaf = folders.get(dir)
+    if (leaf !== undefined) leaf.files += 1
+  }
+  return [...folders.values()].sort((left, right) => compareIds(left.id, right.id))
 }
 
 /**
@@ -791,7 +920,7 @@ async function addFile(state, absolutePath, relativePath) {
   }
 
   const name = path.posix.basename(relativePath)
-  if (isIgnoredFile(name) || !isNodeCandidate(name)) return
+  if (isIgnoredFile(name)) return
   if (state.files.length >= state.limits.maxFiles) {
     state.truncated = true
     state.halted = true
@@ -836,21 +965,30 @@ function isIgnoredDirectory(directoryName) {
 }
 
 /**
+ * Classify one file by its name and extension into a coarse kind. Every file
+ * that survives {@link isIgnoredFile} becomes a node; unknown suffixes read as
+ * `other`.
+ *
+ * @param {string} fileName POSIX-style file name or relative id.
+ * @returns {string} one of {@link FILE_KINDS}.
+ */
+function kindOfFile(fileName) {
+  const base = path.posix.basename(fileName).toLowerCase()
+  const named = KIND_BY_NAME.get(base)
+  if (named !== undefined) return named
+  return KIND_BY_EXTENSION.get(path.posix.extname(base)) || 'other'
+}
+
+/**
  * @param {string} fileName file basename.
  * @returns {boolean} true when the file must not become a node.
  */
 function isIgnoredFile(fileName) {
   const lower = fileName.toLowerCase()
   if (IGNORED_FILE_NAMES.has(lower)) return true
+  // Editor and build-system temporaries that carry no project meaning.
+  if (lower.endsWith('~') || /\.(?:tmp|temp|swp|swo|bak|orig|rej)$/.test(lower)) return true
   return lower.endsWith('.min.js') || lower.endsWith('.min.css') || lower.endsWith('.map')
-}
-
-/**
- * @param {string} fileName file basename.
- * @returns {boolean} true when the file extension becomes a node.
- */
-function isNodeCandidate(fileName) {
-  return NODE_EXTENSIONS.has(path.posix.extname(fileName).toLowerCase())
 }
 
 /**
@@ -898,10 +1036,15 @@ function collectSpecifiers(ext, text) {
   }
   if (STYLE_EXTENSIONS.has(ext)) {
     collectMatches(STYLE_IMPORT_RE, text, 'style-import', specifiers)
+    collectMatches(CSS_URL_RE, text, 'asset-ref', specifiers)
   }
   if (MARKUP_EXTENSIONS.has(ext)) {
     collectMatches(SCRIPT_SRC_RE, text, 'html-ref', specifiers)
     collectMatches(LINK_HREF_RE, text, 'html-ref', specifiers)
+    collectMatches(ASSET_SRC_RE, text, 'html-ref', specifiers)
+    collectMatches(ANCHOR_HREF_RE, text, 'html-ref', specifiers)
+    collectMatches(OBJECT_DATA_RE, text, 'html-ref', specifiers)
+    collectMatches(VIDEO_POSTER_RE, text, 'html-ref', specifiers)
   }
   if (MARKDOWN_EXTENSIONS.has(ext)) {
     collectMatches(MARKDOWN_LINK_RE, text, 'markdown-link', specifiers)
@@ -998,9 +1141,10 @@ function resolveSpecifierToId(sourceId, rawSpecifier, nodeIds, kind) {
  * Turn a specifier into a root-relative POSIX base path, or null when it is
  * external / escapes the root / carries no path.
  *
- * Bare references (`main.js`, `../style.css`) are relative by definition in
- * HTML attributes and Markdown links, so those two kinds accept them; script
- * specifiers stay strict (bare names are packages, not workspace files).
+ * Bare references (`main.js`, `../style.css`, `url("logo.png")`) are relative by
+ * definition in HTML attributes, CSS `url()` and Markdown links, so those kinds
+ * accept them; script specifiers stay strict (bare names are packages, not
+ * workspace files).
  *
  * @param {string} sourceId node id of the importing file.
  * @param {string} rawSpecifier specifier captured from the parser.
@@ -1032,7 +1176,7 @@ function basePathForSpecifier(sourceId, rawSpecifier, kind) {
     base = specifier.slice(1)
   } else if (specifier.startsWith('./') || specifier.startsWith('../')) {
     base = path.posix.join(path.posix.dirname(sourceId), specifier)
-  } else if (kind === 'html-ref' || kind === 'markdown-link') {
+  } else if (kind === 'html-ref' || kind === 'markdown-link' || kind === 'asset-ref') {
     base = path.posix.join(path.posix.dirname(sourceId), specifier)
   } else {
     return null

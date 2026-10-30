@@ -60,8 +60,9 @@ const navigation = {
   'direction arrowheads': source.includes('function drawArrowHeads')
     && source.includes('ctx.closePath()')
     && source.includes('drawArrowHeads(links'),
-  // Documentation references render dashed; code/style relationships solid.
+  // Documentation and asset references render dashed; code/style relationships solid.
   'link families': source.includes('function isDocumentationLink')
+    && source.includes("kind === 'asset-ref'")
     && source.includes('setLineDash([4 / scale, 4 / scale])'),
   // Hovering a link names both endpoints and its relation kind.
   'link relationship tooltip': source.includes('function relationsOf')
@@ -72,6 +73,37 @@ const navigation = {
     && source.includes('onOpenFile(row.node)'),
   // Failure to open must explain itself instead of silently closing the graph.
   'open failure notice': source.includes('noPreview') && source.includes('cnx-notice'),
+}
+
+/** File-family anatomy added for 1.1.0: every file type + folder regions. */
+const anatomy = {
+  // Every Host node carries a coarse kind that the canvas groups into five
+  // shapes (code circles, document squares, data diamonds, asset rings, dots).
+  'file kind grouping': source.includes("const NODE_GROUPS = ['code', 'doc', 'data', 'asset', 'other']")
+    && source.includes('function nodeGroupOf')
+    && source.includes('kind: nodeGroupOf(raw)'),
+  'kind-specific node shapes': source.includes('function appendNodePath')
+    && source.includes('function appendRoundRect')
+    && source.includes("groupName === 'doc'")
+    && source.includes("groupName === 'data'")
+    && source.includes("groupName === 'asset'"),
+  // Folder/subfolder regions are computed from the live layout and drawn behind
+  // the graph, with labels; the toggle only asks the engine for a repaint.
+  'folder hull regions': source.includes('function drawFolderHulls')
+    && source.includes('function computeFolderBoxes')
+    && source.includes('function folderChainOf')
+    && source.includes('folderLabelOf'),
+  'folder toggle': source.includes('showFolders')
+    && source.includes('aria-pressed')
+    && source.includes('function onToggleFolders'),
+  // The legend exposes the file families and their counts.
+  'family legend': source.includes("className: 'cnx-legend'")
+    && source.includes('cnx-legend-item')
+    && artifact.includes('cnx-legend-code'),
+  // The node tooltip names the kind, extension and size, not just a degree.
+  'kind-aware tooltip': source.includes('formatBytes')
+    && source.includes('GROUP_LABEL_KEY')
+    && source.includes('formatBytes(hoverNode.size)'),
 }
 
 const checks = {
@@ -89,6 +121,7 @@ const checks = {
   'lf only': !artifact.includes('\r'),
   ...canvasVisibility,
   ...navigation,
+  ...anatomy,
 }
 let failed = 0
 for (const [label, ok] of Object.entries(checks)) {

@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="cnx-title cnx-desc">
-  <title id="cnx-title">Connectome — a living map of a workspace's files and imports</title>
-  <desc id="cnx-desc">Illustration of a force-directed graph: blue neurons are files, grey arrows are imports, dashed links are documentation references. This is artwork, not a screenshot.</desc>
+  <title id="cnx-title">Connectome — a living map of a workspace's files, folders and references</title>
+  <desc id="cnx-desc">Illustration of a force-directed graph: blue circles are code files, grey squares are documents such as PDFs, diamonds are data files, rings are assets, and dashed rectangles outline folders and subfolders. Grey arrows are imports and dashed links are structural references. This is artwork, not a screenshot.</desc>
   <defs>
     <radialGradient id="cnx-bg" cx="72%" cy="42%" r="72%">
-      <stop offset="0" stop-color="#1E293B"/>
+      <stop offset="0" stop-color="#1D4ED8" stop-opacity="0.35"/>
       <stop offset="1" stop-color="#0F172A"/>
     </radialGradient>
     <linearGradient id="cnx-title" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="1" stop-color="#93C5FD"/>
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DBEAFE"/>
     </linearGradient>
     <marker id="cnx-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 10 5 0 10z" fill="#94A3B8"/>
@@ -27,56 +27,105 @@
 
   <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif">
     <text x="80" y="104" font-size="46" font-weight="700" letter-spacing="-1" fill="url(#cnx-title)">Connectome</text>
-    <text x="80" y="142" font-size="19" fill="#CBD5E1">A living map of your workspace — every file a neuron, every import a synapse.</text>
+    <text x="80" y="142" font-size="19" fill="#CBD5E1">Every file a neuron, every reference a synapse, every folder a region.</text>
 
+    <!-- Folder and subfolder regions behind the graph -->
+    <g fill="#3B82F6" fill-opacity="0.05" stroke="#64748B" stroke-width="1.5" stroke-dasharray="7 7">
+      <rect x="560" y="196" width="312" height="238" rx="16"/>
+      <rect x="628" y="244" width="212" height="158" rx="14"/>
+      <rect x="892" y="196" width="244" height="182" rx="16"/>
+      <rect x="892" y="404" width="244" height="132" rx="16"/>
+    </g>
+    <g fill="#94A3B8" font-size="14" font-weight="500">
+      <text x="574" y="220">src/</text>
+      <text x="642" y="268">features/</text>
+      <text x="906" y="220">docs/</text>
+      <text x="906" y="428">assets/</text>
+    </g>
+
+    <!-- Imports and requires: solid directed edges; structural references: dashed -->
     <g stroke="#94A3B8" fill="none" stroke-linecap="round">
-      <path d="M760 360 640 300" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 660 430" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 850 270" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 880 370" stroke-width="2.4" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 830 470" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 980 330" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M760 360 760 220" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M640 300 600 380" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M880 370 930 470" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <path d="M850 270 960 250" stroke-width="1.6" stroke-dasharray="7 7" opacity="0.75" marker-end="url(#cnx-arrow)"/>
-      <path d="M660 430 700 500" stroke-width="1.6" stroke-dasharray="7 7" opacity="0.75" marker-end="url(#cnx-arrow)"/>
+      <path d="M770 330 690 290" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
+      <path d="M770 330 716 388" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
+      <path d="M770 330 868 262" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
+      <path d="M770 330 858 324" stroke-width="2.6" marker-end="url(#cnx-arrow)"/>
+      <path d="M770 330 846 396" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
+      <path d="M858 324 962 300" stroke-width="1.7" stroke-dasharray="7 7" stroke-opacity="0.85" marker-end="url(#cnx-arrow)"/>
+      <path d="M962 300 1004 452" stroke-width="1.7" stroke-dasharray="7 7" stroke-opacity="0.85" marker-end="url(#cnx-arrow)"/>
+      <path d="M846 396 1004 452" stroke-width="1.7" stroke-dasharray="7 7" stroke-opacity="0.85" marker-end="url(#cnx-arrow)"/>
+      <path d="M690 290 640 352" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
+      <path d="M716 388 640 352" stroke-width="2.2" marker-end="url(#cnx-arrow)"/>
     </g>
 
-    <g fill="#2563EB" stroke="#0F172A" stroke-width="2.5">
-      <circle cx="760" cy="360" r="14" filter="url(#cnx-glow)"/>
-      <circle cx="640" cy="300" r="8"/>
-      <circle cx="660" cy="430" r="9"/>
-      <circle cx="850" cy="270" r="7"/>
-      <circle cx="880" cy="370" r="10"/>
-      <circle cx="830" cy="470" r="8"/>
-      <circle cx="600" cy="380" r="6"/>
+    <!-- Code files: filled circles -->
+    <g fill="#3B82F6" stroke="#0F172A" stroke-width="2.5">
+      <circle cx="770" cy="330" r="14" filter="url(#cnx-glow)"/>
+      <circle cx="690" cy="290" r="9"/>
+      <circle cx="716" cy="388" r="9"/>
+      <circle cx="846" cy="396" r="7"/>
+      <circle cx="640" cy="352" r="7"/>
     </g>
-    <g fill="#60A5FA" stroke="#0F172A" stroke-width="2">
-      <circle cx="930" cy="470" r="6"/>
-      <circle cx="980" cy="330" r="7"/>
-      <circle cx="700" cy="500" r="6"/>
-      <circle cx="960" cy="250" r="5"/>
-      <circle cx="760" cy="220" r="6"/>
+    <g fill="#DBEAFE" stroke="#0F172A" stroke-width="2">
+      <circle cx="868" cy="262" r="8"/>
     </g>
+
+    <!-- Documents (PDF/Markdown): rounded squares -->
+    <g fill="#CBD5E1" stroke="#0F172A" stroke-width="2.5">
+      <rect x="846" y="312" width="24" height="24" rx="6"/>
+      <rect x="950" y="288" width="22" height="22" rx="6"/>
+    </g>
+
+    <!-- Data: diamonds -->
+    <g fill="#94A3B8" stroke="#0F172A" stroke-width="2">
+      <path d="M858 396 866 388 874 396 866 404z"/>
+      <path d="M992 330 1000 322 1008 330 1000 338z"/>
+    </g>
+
+    <!-- Assets (images, fonts, media): rings -->
+    <g fill="#0F172A" stroke="#3B82F6" stroke-width="3">
+      <circle cx="1004" cy="452" r="10"/>
+      <circle cx="1088" cy="470" r="7"/>
+      <circle cx="1108" cy="500" r="6"/>
+    </g>
+
+    <!-- Labels -->
     <g fill="#F1F5F9" font-size="14" font-weight="500">
-      <text x="650" y="284">engine.ts</text>
-      <text x="892" y="360">index.ts</text>
-      <text x="774" y="362">App.tsx</text>
+      <text x="784" y="336">index.ts</text>
+      <text x="884" y="330">App.tsx</text>
+      <text x="700" y="292">engine.ts</text>
+    </g>
+    <g fill="#CBD5E1" font-size="13">
+      <text x="964" y="306">spec.pdf</text>
+      <text x="1016" y="446">hero.png</text>
+      <text x="1016" y="462" font-size="12" fill="#64748B">ring = asset</text>
     </g>
     <g fill="#94A3B8" font-size="13">
-      <text x="624" y="318">router.ts</text>
-      <text x="848" y="492">theme.css</text>
-      <text x="986" y="318">docs/</text>
+      <text x="628" y="372">router.ts</text>
+      <text x="856" y="418">config.json</text>
     </g>
 
-    <g transform="translate(80 520)">
-      <line x1="0" y1="0" x2="44" y2="0" stroke="#94A3B8" stroke-width="2" marker-end="url(#cnx-arrow)"/>
-      <text x="58" y="5" fill="#CBD5E1" font-size="15">imports &amp; requires</text>
-      <line x1="240" y1="0" x2="284" y2="0" stroke="#94A3B8" stroke-width="1.6" stroke-dasharray="7 7"/>
-      <text x="298" y="5" fill="#CBD5E1" font-size="15">documentation links</text>
-      <line x1="0" y1="34" x2="44" y2="34" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/>
-      <text x="58" y="39" fill="#CBD5E1" font-size="15">click a neuron to open its code in the sidebar</text>
+    <!-- Legend: file families + folder regions + edge families -->
+    <g transform="translate(80 506)" font-size="15" fill="#CBD5E1">
+      <rect x="0" y="-14" width="34" height="26" rx="8" fill="#3B82F6" fill-opacity="0.05" stroke="#64748B" stroke-width="1.5" stroke-dasharray="6 6"/>
+      <text x="46" y="5">folders &amp; subfolders</text>
+
+      <circle cx="246" cy="0" r="7" fill="#3B82F6"/>
+      <text x="262" y="5">code</text>
+
+      <rect x="336" y="-7" width="14" height="14" rx="4" fill="#CBD5E1"/>
+      <text x="360" y="5">docs / PDF</text>
+
+      <path d="M456 0 464 -8 472 0 464 8z" fill="#94A3B8"/>
+      <text x="482" y="5">data</text>
+
+      <circle cx="566" cy="0" r="7" fill="#0F172A" stroke="#3B82F6" stroke-width="2.5"/>
+      <text x="582" y="5">assets</text>
+
+      <line x1="690" y1="0" x2="734" y2="0" stroke="#94A3B8" stroke-width="2" marker-end="url(#cnx-arrow)"/>
+      <text x="748" y="5">imports</text>
+
+      <line x1="858" y1="0" x2="902" y2="0" stroke="#94A3B8" stroke-width="1.6" stroke-dasharray="7 7"/>
+      <text x="916" y="5">references</text>
     </g>
 
     <text x="80" y="596" fill="#64748B" font-size="14">dsh-connectome · DSH plugin · canvas + d3-force · illustration, not a screenshot</text>

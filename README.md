@@ -6,10 +6,11 @@
 [![DSH](https://img.shields.io/badge/DSH-%E2%89%A50.2.1--rc.2-3B82F6.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
 **A living map of your workspace for the DeepSeek Harness Web UI** — every file is a
-neuron, every import is a synapse. Connectome scans the current workspace, draws the
-file/dependency graph on a single `<canvas>` with `d3-force` physics, lets you trace
-any relationship, and turns a click on a neuron into the file's code in the
-harness' own right-sidebar preview.
+neuron, every reference is a synapse, every folder is a region. Connectome scans the
+current workspace — code, documents, PDFs, images, data, media, fonts and unclassified
+binaries alike — draws the file/folder graph on a single `<canvas>` with `d3-force`
+physics, lets you trace any relationship, and turns a click on a neuron into that file
+in the harness' own right-sidebar preview.
 
 ![Connectome illustration](docs/preview.svg)
 
@@ -20,18 +21,28 @@ harness' own right-sidebar preview.
 - **One canvas, hundreds of nodes, 60 fps.** Nodes and links are painted into a single
   `<canvas>`; there is no DOM node per file. `d3-force` runs the layout, the plugin's
   own `requestAnimationFrame` loop ticks it, and the simulation stops when idle.
-- **Relationships you can read.** Dependency edges carry an arrowhead at the imported
+- **Every file type.** Code, styles, Markdown, PDFs, Word/PowerPoint/Excel documents,
+  images, fonts, data files, media and unclassified binaries all become neurons. Each
+  is tagged with a coarse family — **code** (circles), **docs** (rounded squares),
+  **data** (diamonds), **assets** such as images/media/fonts/archives (rings) and
+  **other** (small dots). The legend counts the families and the node tooltip reports
+  the kind, extension and byte size.
+- **Folders and subfolders.** Directory regions are painted behind the graph as nested
+  outlines computed from the live layout, labelled with the folder name; the header's
+  folder toggle hides or shows them. Folders are a map of where files live, not force
+  nodes, so they never displace the relationship layout.
+- **Relationships you can read.** Dependency edges carry an arrowhead at the referenced
   file: **solid** for `import` / `export … from` / dynamic `import()` / `require` / CSS
-  `@import`, **dashed** for HTML and Markdown references. Hover a link to see both
-  endpoints and the relation kind.
+  `@import`, **dashed** for HTML attributes, Markdown links/images and CSS `url(...)`
+  assets. Hover a link to see both endpoints and the relation kind.
 - **Neighbourhood inspection.** Hovering a node highlights its neighbourhood and lists
   its direct ties (`→` imports, `←` imported by), each clickable, with a `+N` summary
   for the rest. Great for seeing how two modules — or two "engine" files — meet.
-- **Click to read code.** Clicking a neuron opens that file in the harness'
-  right-Sidebar document preview (`ctx.sidebarRight.openResource` with a
-  `dsh-resource://file/session/…` address): line numbers, language label, copy, and
-  automatic reload, all inside DSH. A missing preview or selected session is explained
-  in the footer.
+- **Click to open.** Clicking a neuron opens that file in the harness' right-Sidebar
+  document preview (`ctx.sidebarRight.openResource` with a
+  `dsh-resource://file/session/…` address): code with line numbers, Markdown, PDFs,
+  images and Office documents, all inside DSH. A missing preview or selected session is
+  explained in the footer.
 - **Theme-aware.** The canvas reads its colors from the live `--dsw-alias-*` theme
   tokens at runtime, so light/dark switches recolor the graph.
 - **Workspace switcher, rescan, fit, zoom, pan, node drag, `Esc` to close.**
@@ -101,12 +112,14 @@ cd dsh-connectome
 ## Usage
 
 1. Open the sidebar panel list's **More** menu → **🧠 Connectome**.
-2. The dialog scans the current workspace and fits the graph to view.
-3. Use the header to switch workspace (when several are registered), rescan, fit or
-   zoom; drag the background to pan; scroll to zoom around the pointer; drag a node to
-   pull it.
-4. Hover a node or a link for the relationship tooltip. Click a neuron to open the file
-   in the right sidebar. `Esc` / the ✕ button closes the dialog.
+2. The dialog scans the current workspace and fits the graph to view. The legend in the
+   top-left corner counts each file family present.
+3. Use the header to switch workspace (when several are registered), toggle the folder
+   outlines, rescan, fit or zoom; drag the background to pan; scroll to zoom around the
+   pointer; drag a node to pull it.
+4. Hover a node or a link for the relationship tooltip. Hovering a node also emphasizes
+   its folder chain. Click a neuron to open the file in the right sidebar. `Esc` / the ✕
+   button closes the dialog.
 
 ## Supported dependency syntax
 
@@ -115,14 +128,18 @@ deliberately **not** expanded into `node_modules`):
 
 | Files | Relationships |
 | --- | --- |
-| JS / TS / JSX / TSX / Vue / Svelte | `import … from`, `export … from`, dynamic `import()`, `require()` |
-| CSS / SCSS / Sass / Less / Stylus | `@import`, `@use`, `@forward` |
-| HTML | `<script src>`, `<link href>` |
-| Markdown | relative links and images |
+| JS / TS / JSX / TSX / Vue / Svelte | `import … from`, `export … from`, dynamic `import()`, `require()` (any target, including assets) |
+| CSS / SCSS / Sass / Less / Stylus | `@import`, `@use`, `@forward`, `url(...)` assets (images, fonts) |
+| HTML | `<script src>`, `<link href>`, `<img>`/`<source>`/`<iframe>`/`<video>`/`<audio>`/`<track>` `src`, `<a href>`, `<object data>`, `<video poster>` |
+| Markdown | relative links and images — code, PDFs, images, any file |
 | Python | `import x`, `from . import y` |
 
+Every non-ignored regular file becomes a node, so a referenced PDF, image, font or data
+file appears on the graph even though only text formats are parsed for further links.
 Only relative, root-relative and `@/` / `~/` specifiers resolve to workspace files.
-`node_modules`, `.git`, build outputs, caches and dot-directories are skipped.
+`node_modules`, `.git`, build outputs, caches and dot-directories are skipped;
+lockfiles, source maps, minified bundles and OS junk (`.DS_Store`, `Thumbs.db`, editor
+swaps) are excluded as well.
 
 ## How it works
 
@@ -133,6 +150,9 @@ Only relative, root-relative and `@/` / `~/` specifiers resolve to workspace fil
 - Resolves the workspace root from the registered workspaces (or the current working
   directory) and scans it under hard caps: 2,000 file nodes, 12,000 directory entries,
   1,500 parsed files, 512 KiB read per file, an 8 s soft time budget.
+- Every non-ignored regular file becomes a node with a coarse `kind`; text formats are
+  parsed for references and a reference links any scanned file it resolves to. The
+  folder index is returned alongside the nodes so the Client can draw directory regions.
 - Returns the graph:
 
 ```json
@@ -140,9 +160,29 @@ Only relative, root-relative and `@/` / `~/` specifiers resolve to workspace fil
   "ok": true,
   "root": "C:\\path\\workspace",
   "roots": [{ "path": "C:\\path\\workspace", "title": "my-project" }],
-  "nodes": [{ "id": "src/index.js", "label": "index.js", "ext": ".js", "size": 1234, "dir": "src" }],
-  "links": [{ "source": "src/index.js", "target": "src/util.js", "kind": "import" }],
-  "stats": { "files": 2, "scanned": 2, "links": 1, "truncated": false, "durationMs": 4 }
+  "nodes": [
+    { "id": "src/index.js", "label": "index.js", "ext": ".js", "size": 1234, "dir": "src", "kind": "code" },
+    { "id": "src/util.js", "label": "util.js", "ext": ".js", "size": 456, "dir": "src", "kind": "code" },
+    { "id": "docs/readme.md", "label": "readme.md", "ext": ".md", "size": 789, "dir": "docs", "kind": "doc" },
+    { "id": "docs/spec.pdf", "label": "spec.pdf", "ext": ".pdf", "size": 48213, "dir": "docs", "kind": "doc" }
+  ],
+  "links": [
+    { "source": "docs/readme.md", "target": "docs/spec.pdf", "kind": "markdown-link" },
+    { "source": "src/index.js", "target": "src/util.js", "kind": "import" }
+  ],
+  "folders": [
+    { "id": "docs", "parent": null, "depth": 1, "files": 2, "total": 2 },
+    { "id": "src", "parent": null, "depth": 1, "files": 2, "total": 2 }
+  ],
+  "stats": {
+    "files": 4,
+    "folders": 2,
+    "scanned": 3,
+    "links": 2,
+    "truncated": false,
+    "durationMs": 4,
+    "kinds": { "code": 2, "doc": 2, "data": 0, "image": 0, "media": 0, "archive": 0, "font": 0, "other": 0 }
+  }
 }
 ```
 
@@ -153,9 +193,14 @@ Only relative, root-relative and `@/` / `~/` specifiers resolve to workspace fil
 - Builds the d3 simulation once per loaded graph with `simulation.stop()`, then ticks it
   from the plugin's `requestAnimationFrame` loop; hover changes update React state, but
   pointer moves only mutate transforms, and frames are requested only while needed.
-- Batches all solid edges into one stroke, all documentation edges into a dashed
-  stroke, all arrowheads into one fill, and all nodes into one fill per color group.
-  Link hit-testing is a screen-space segment-distance pass — no DOM.
+- Batches all solid edges into one stroke, all structural edges into a dashed stroke,
+  all arrowheads into one fill, node shapes into one fill per family, and folder
+  outlines into one fill + stroke pass. Link hit-testing is a screen-space
+  segment-distance pass — no DOM.
+- Folder/subfolder outlines are recomputed from the live node positions each frame
+  (linear in nodes × depth), so regions follow the simulation instead of freezing the
+  layout; their labels appear once the zoom level makes them legible, and the hovered
+  node's whole folder chain is emphasized. The header toggle only requests a repaint.
 - Layout seeds d3's phyllotaxis spiral and uses weak `forceX`/`forceY` centering, so
   disconnected files stay in one cloud and fit-to-view never zooms to sub-pixel dots.
 - `ResizeObserver` keeps the backing store matched to CSS size (DPR clamped to 2);
@@ -178,10 +223,12 @@ transmits file contents.
 
 ## Performance
 
-- Canvas painting, one path per color group; only the hovered neighbourhood gets labels.
+- Canvas painting: one path per file family, one stroke per edge family, and one
+  folder-outline pass; only the hovered neighbourhood gets labels.
 - The simulation stops at `alphaMin`; an interaction kicks it again.
 - Measured layout cost on a development machine: ~1.1 ms/tick at 300 nodes, ~8 ms/tick
   at 2,000 nodes; a 2,000-node / ~3,300-link scan runs in about half a second warm.
+  Folder outlines add one linear pass over the laid-out nodes per painted frame.
 - Large workspaces are capped and report `stats.truncated`; the dialog shows a
   "partial scan" marker.
 
@@ -216,10 +263,13 @@ This plugin is a Harness UI surface, so it deliberately splits the two systems:
 
 - Regex-based parsing: aliases beyond `@/`/`~/`, `tsconfig` path maps and bundler
   resolution rules are not modeled; bare package names do not become nodes.
-- Files are only previewed as code when the harness' right-Sidebar document preview is
-  available; unsupported extensions fall back to plain text, and binary files are not
-  indexed at all.
-- Very large repositories hit the scanner caps (see above) and show a partial graph.
+- Binary formats (PDF, images, Office, media) are nodes and preview through DSH's
+  document preview where it supports them; unknown suffixes show the preview's
+  unsupported message. Binaries are never parsed, so they do not contribute links.
+- Directory regions are an outline overlay computed from the layout, not force nodes:
+  folders do not repel or pull files, and empty folders do not appear.
+- Large repositories hit the scanner caps (see above) and show a partial graph; the
+  walk is alphabetical, so one deeply crowded folder can consume the node budget.
 - The graph is a viewer, not an editor: there is no refactoring, search or saved layout.
 
 ## License

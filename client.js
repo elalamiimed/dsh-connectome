@@ -13,10 +13,13 @@
  *   sidebar.panellist.actions : one "🧠 Connectome" menu row that opens the overlay.
  *   shell.overlay             : the frame-wide dialog with the canvas+d3-force graph.
  *
- * In the dialog, dependency edges are drawn with direction arrowheads (solid for
- * code/style imports, dashed for HTML/Markdown references); hovering a node or a
- * link reports the relationship, and clicking a neuron opens that file in the
- * harness' own right-Sidebar preview (`ctx.sidebarRight.openResource` with a
+ * In the dialog every workspace file is a neuron — code, documents (including
+ * PDFs and Office files), images, data, media, fonts and archives — colored and
+ * shaped by its coarse kind, with folder/subfolder regions outlined behind the
+ * graph. Dependency edges carry direction arrowheads (solid for code/style/asset
+ * relationships, dashed for HTML/Markdown references); hovering a node or a link
+ * reports the relationship, and clicking a neuron opens that file in the harness'
+ * own right-Sidebar preview (`ctx.sidebarRight.openResource` with a
  * `dsh-resource://file/session/…` address).
  *
  * Only `require('react')` and `require('d3-force')` are used. build.mjs inlines the
@@ -63,7 +66,7 @@ function createConnectome(require) {
     open: '🧠 Connectome',
     title: 'Connectome',
     loading: 'Scanning workspace…',
-    empty: 'No source files found in this workspace.',
+    empty: 'No files found in this workspace.',
     error: 'Could not build the graph.',
     retry: 'Retry',
     rescan: 'Rescan',
@@ -71,8 +74,9 @@ function createConnectome(require) {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     close: 'Close',
-    hint: 'Click a node to open its code · Drag to pan · Scroll to zoom · Hover a node or link to inspect',
+    hint: 'Click a node to open it · Drag to pan · Scroll to zoom · Hover a node or link to inspect · Folder outlines map the directories',
     files: 'files',
+    folders: 'folders',
     links: 'links',
     partial: 'partial scan',
     workspace: 'Workspace',
@@ -86,9 +90,17 @@ function createConnectome(require) {
     relHtmlRef: 'HTML reference',
     relMarkdownLink: 'markdown link',
     relPythonImport: 'python import',
+    relAssetRef: 'asset reference',
     relUnknown: 'reference',
+    kindCode: 'code',
+    kindDoc: 'docs',
+    kindData: 'data',
+    kindAsset: 'assets',
+    kindOther: 'other',
+    showFolders: 'Show folder outlines',
+    hideFolders: 'Hide folder outlines',
     noPreview: 'The right-sidebar file preview is not available in this window.',
-    noSession: 'Open a session first, then click a node to view its code.',
+    noSession: 'Open a session first, then click a node to view its file.',
     openFailed: 'Could not open this file in the right sidebar.',
   };
 
@@ -96,7 +108,7 @@ function createConnectome(require) {
     open: '🧠 连接图谱',
     title: '连接图谱',
     loading: '正在扫描工作区…',
-    empty: '此工作区中没有可解析的源文件。',
+    empty: '此工作区中没有文件。',
     error: '无法构建关系图。',
     retry: '重试',
     rescan: '重新扫描',
@@ -104,8 +116,9 @@ function createConnectome(require) {
     zoomIn: '放大',
     zoomOut: '缩小',
     close: '关闭',
-    hint: '点击节点在右侧边栏打开代码 · 拖拽平移 · 滚轮缩放 · 悬停节点或连线查看关系',
+    hint: '点击节点在右侧边栏打开文件 · 拖拽平移 · 滚轮缩放 · 悬停节点或连线查看关系 · 文件夹轮廓显示目录结构',
     files: '个文件',
+    folders: '个文件夹',
     links: '条依赖',
     partial: '部分扫描',
     workspace: '工作区',
@@ -119,9 +132,17 @@ function createConnectome(require) {
     relHtmlRef: 'HTML 引用',
     relMarkdownLink: 'Markdown 链接',
     relPythonImport: 'Python 导入',
+    relAssetRef: '资源引用',
     relUnknown: '引用',
+    kindCode: '代码',
+    kindDoc: '文档',
+    kindData: '数据',
+    kindAsset: '资源',
+    kindOther: '其他',
+    showFolders: '显示文件夹轮廓',
+    hideFolders: '隐藏文件夹轮廓',
     noPreview: '当前窗口无法使用右侧边栏的文件预览。',
-    noSession: '请先打开一个会话，再点击节点查看代码。',
+    noSession: '请先打开一个会话，再点击节点查看文件。',
     openFailed: '无法在右侧边栏打开此文件。',
   };
 
@@ -145,6 +166,7 @@ function createConnectome(require) {
   --ds-radius-md: 8px;
   --ds-radius-lg: 12px;
   --ds-radius-xl: 16px;
+  --ds-radius-full: 9999px;
   --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
   --ds-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.10);
   --ds-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
@@ -467,6 +489,63 @@ function createConnectome(require) {
   white-space: nowrap;
   direction: ltr;
 }
+.cnx-icon-btn[aria-pressed="true"] {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-brand-primary);
+}
+.cnx-legend {
+  position: absolute;
+  left: var(--ds-space-3);
+  top: var(--ds-space-3);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-1) var(--ds-space-2);
+  max-width: calc(100% - var(--ds-space-6));
+  pointer-events: none;
+}
+.cnx-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  height: var(--ds-space-5);
+  padding: 0 var(--ds-space-2);
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 82%, transparent);
+  color: var(--dsw-alias-label-secondary);
+  border: var(--ds-border-width) solid var(--dsw-alias-border-l1);
+  border-radius: var(--ds-radius-full);
+  font-size: var(--ds-font-size-caption);
+  line-height: var(--ds-line-caption);
+  white-space: nowrap;
+}
+.cnx-legend-shape {
+  flex: 0 0 auto;
+  width: var(--ds-space-2);
+  height: var(--ds-space-2);
+}
+.cnx-legend-code {
+  border-radius: var(--ds-radius-full);
+  background: var(--dsw-alias-brand-primary);
+}
+.cnx-legend-doc {
+  border-radius: var(--ds-radius-sm);
+  background: var(--dsw-alias-label-secondary);
+}
+.cnx-legend-data {
+  border-radius: 0;
+  background: var(--dsw-alias-label-secondary);
+  transform: rotate(45deg);
+}
+.cnx-legend-asset {
+  border-radius: var(--ds-radius-full);
+  border: var(--ds-border-width) solid var(--dsw-alias-brand-primary);
+}
+.cnx-legend-other {
+  border-radius: var(--ds-radius-full);
+  background: var(--dsw-alias-label-secondary);
+  opacity: 0.6;
+}
 `;
 
   // ---------------------------------------------------------------------------
@@ -778,6 +857,7 @@ function createConnectome(require) {
     'html-ref': 'relHtmlRef',
     'markdown-link': 'relMarkdownLink',
     'python-import': 'relPythonImport',
+    'asset-ref': 'relAssetRef',
   };
 
   function relationLabel(t, kind) {
@@ -786,11 +866,87 @@ function createConnectome(require) {
   }
 
   /**
-   * Documentation references (HTML/Markdown) render dashed; code and style
-   * relationships render solid. This keeps the two families legible in one view.
+   * Structural references (HTML/Markdown/asset `url()`) render dashed; code and
+   * style dependency relationships render solid. This keeps the two families
+   * legible in one view.
    */
   function isDocumentationLink(kind) {
-    return kind === 'html-ref' || kind === 'markdown-link';
+    return kind === 'html-ref' || kind === 'markdown-link' || kind === 'asset-ref';
+  }
+
+  // ---------------------------------------------------------------------------
+  // File families. The Host tags every node with a coarse `kind`; the canvas
+  // groups those kinds into five shapes so a PDF, a PNG and a JS module read
+  // differently at a glance. All paint colors still come from the live
+  // --dsw-alias-* theme tokens (see the stylesheet note above).
+  // ---------------------------------------------------------------------------
+  const NODE_GROUPS = ['code', 'doc', 'data', 'asset', 'other'];
+
+  const GROUP_OF_KIND = {
+    code: 'code',
+    doc: 'doc',
+    data: 'data',
+    image: 'asset',
+    media: 'asset',
+    font: 'asset',
+    archive: 'asset',
+    other: 'other',
+  };
+
+  const GROUP_LABEL_KEY = {
+    code: 'kindCode',
+    doc: 'kindDoc',
+    data: 'kindData',
+    asset: 'kindAsset',
+    other: 'kindOther',
+  };
+
+  /**
+   * Coarse drawing group of one Host node. Payloads from Host versions before
+   * `kind` existed only contained source files, so `code` is the safe fallback.
+   * @param {object} node graph node.
+   * @returns {string} one of {@link NODE_GROUPS}.
+   */
+  function nodeGroupOf(node) {
+    const kind = node && typeof node.kind === 'string' && node.kind ? node.kind : 'code';
+    return GROUP_OF_KIND[kind] || 'other';
+  }
+
+  /**
+   * Per-group file counts, from `stats.kinds` when the Host provides it and from
+   * the nodes themselves otherwise.
+   * @param {object} graph graph payload.
+   * @returns {Record<string, number>} counts for every group.
+   */
+  function graphKindCounts(graph) {
+    /** @type {Record<string, number>} */
+    const counts = { code: 0, doc: 0, data: 0, asset: 0, other: 0 };
+    const kinds = graph && graph.stats ? graph.stats.kinds : null;
+    if (kinds && typeof kinds === 'object') {
+      for (const kind in kinds) {
+        if (!Object.prototype.hasOwnProperty.call(kinds, kind)) continue;
+        const group = GROUP_OF_KIND[kind] || 'other';
+        const value = Number(kinds[kind]);
+        if (Number.isFinite(value) && value > 0) counts[group] += value;
+      }
+      return counts;
+    }
+    const nodes = graph && Array.isArray(graph.nodes) ? graph.nodes : [];
+    for (let i = 0; i < nodes.length; i++) counts[nodeGroupOf(nodes[i])] += 1;
+    return counts;
+  }
+
+  /**
+   * Human-readable byte size for the node tooltip.
+   * @param {number} bytes file size in bytes.
+   * @returns {string} e.g. `12 B`, `4.2 KB`, `1.3 MB`.
+   */
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+    if (bytes < 1024) return Math.round(bytes) + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   }
 
   // ---------------------------------------------------------------------------
@@ -897,6 +1053,7 @@ function createConnectome(require) {
     const closeButtonRef = React.useRef(null);
     const canvasApiRef = React.useRef(null);
     const [notice, setNotice] = React.useState(null);
+    const [showFolders, setShowFolders] = React.useState(true);
 
     const runLoad = React.useCallback(function loadGraph(root) {
       const rawRoot = typeof root === 'string' ? root : '';
@@ -1140,12 +1297,22 @@ function createConnectome(require) {
       stats && typeof stats.files === 'number' ? stats.files : graph && Array.isArray(graph.nodes) ? graph.nodes.length : 0;
     const linkCount =
       stats && typeof stats.links === 'number' ? stats.links : graph && Array.isArray(graph.links) ? graph.links.length : 0;
+    const folderCount =
+      stats && typeof stats.folders === 'number'
+        ? stats.folders
+        : graph && Array.isArray(graph.folders)
+          ? graph.folders.length
+          : 0;
     const busy = view.busy;
     const canUseCanvas = view.phase === 'ready' && nodeCount > 0;
     const metaText = graph
       ? String(files) +
         ' ' +
         t('files') +
+        ' · ' +
+        String(folderCount) +
+        ' ' +
+        t('folders') +
         ' · ' +
         String(linkCount) +
         ' ' +
@@ -1166,6 +1333,11 @@ function createConnectome(require) {
     function onZoomOut() {
       const api = canvasApiRef.current;
       if (api) api.zoomOut();
+    }
+    function onToggleFolders() {
+      setShowFolders(function (value) {
+        return !value;
+      });
     }
     function onRescan() {
       if (!busy) runLoad(currentRoot);
@@ -1230,6 +1402,7 @@ function createConnectome(require) {
         graph: graph,
         root: currentRoot,
         t: t,
+        showFolders: showFolders,
         apiRef: canvasApiRef,
         onOpenFile: handleOpenFile,
       });
@@ -1286,6 +1459,14 @@ function createConnectome(require) {
               )
             : null,
           busy && graph ? h('span', { className: 'cnx-busy', role: 'status' }, t('loading')) : null,
+          iconButton(
+            'folders',
+            showFolders ? t('hideFolders') : t('showFolders'),
+            '🗂',
+            onToggleFolders,
+            !canUseCanvas,
+            { 'aria-pressed': showFolders }
+          ),
           iconButton('fit', t('fit'), '⛶', onFit, !canUseCanvas),
           iconButton('zoom-in', t('zoomIn'), '＋', onZoomIn, !canUseCanvas),
           iconButton('zoom-out', t('zoomOut'), '−', onZoomOut, !canUseCanvas),
@@ -1378,6 +1559,7 @@ function createConnectome(require) {
             ext: raw.ext || '',
             size: typeof raw.size === 'number' ? raw.size : 0,
             dir: typeof raw.dir === 'string' ? raw.dir : '',
+            kind: nodeGroupOf(raw),
             degree: 0,
             adj: [],
             links: [],
@@ -1453,6 +1635,36 @@ function createConnectome(require) {
           }
         }
 
+        // ---- drawing buckets + folder index ----------------------------------
+        /** @type {Record<string, Array<object>>} */
+        const nodesByGroup = { code: [], doc: [], data: [], asset: [], other: [] };
+        for (let i = 0; i < nodes.length; i++) nodesByGroup[nodes[i].kind].push(nodes[i]);
+
+        /**
+         * Ancestor folder ids of one node directory, root-most first. Cached per
+         * directory string: the folder hull pass runs on every frame.
+         */
+        const folderChainCache = new Map();
+        function folderChainOf(dir) {
+          const key = typeof dir === 'string' ? dir : '';
+          const cached = folderChainCache.get(key);
+          if (cached !== undefined) return cached;
+          const chain = [];
+          if (key && key !== '.') {
+            const parts = key.split('/');
+            let current = '';
+            for (let i = 0; i < parts.length; i++) {
+              current = i === 0 ? parts[i] : current + '/' + parts[i];
+              chain.push(current);
+            }
+          }
+          folderChainCache.set(key, chain);
+          return chain;
+        }
+        // Host metadata registers folders; deriving from node dirs keeps older
+        // payloads (and a truncated folder list) drawing correctly.
+        for (let i = 0; i < nodes.length; i++) folderChainOf(nodes[i].dir);
+
         // ---- pre-warm before the first paint ----------------------------------
         sim.alpha(0.9);
         const prewarmStart = nowMs();
@@ -1487,17 +1699,61 @@ function createConnectome(require) {
           link: 'GrayText',
           label: 'CanvasText',
           muted: 'GrayText',
+          hull: 'GrayText',
           font: '12px sans-serif',
           fontPx: 12,
           labelGap: NODE_LABEL_GAP,
         };
 
         // ---- helpers ----------------------------------------------------------
-        function appendCirclePath(node, scale) {
+        /** Append one rounded rectangle subpath to the current path. */
+        function appendRoundRect(x, y, width, height, radius) {
+          const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + width - r, y);
+          ctx.arcTo(x + width, y, x + width, y + r, r);
+          ctx.lineTo(x + width, y + height - r);
+          ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+          ctx.lineTo(x + r, y + height);
+          ctx.arcTo(x, y + height, x, y + height - r, r);
+          ctx.lineTo(x, y + r);
+          ctx.arcTo(x, y, x + r, y, r);
+          ctx.closePath();
+        }
+
+        /**
+         * Append the shape that represents one file family: circles for code,
+         * rounded squares for documents, diamonds for data, rings for assets
+         * (images, media, fonts, archives) and small dots for anything else.
+         */
+        function appendNodePath(node, scale, groupName) {
           if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
           const radius = effectiveRadius(node, scale);
-          ctx.moveTo(node.x + radius, node.y);
-          ctx.arc(node.x, node.y, radius, 0, TAU);
+          if (groupName === 'doc') {
+            const half = radius * 0.9;
+            appendRoundRect(node.x - half, node.y - half, half * 2, half * 2, radius * 0.55);
+            return;
+          }
+          if (groupName === 'data') {
+            const half = radius * 1.25;
+            ctx.moveTo(node.x, node.y - half);
+            ctx.lineTo(node.x + half, node.y);
+            ctx.lineTo(node.x, node.y + half);
+            ctx.lineTo(node.x - half, node.y);
+            ctx.closePath();
+            return;
+          }
+          if (groupName === 'asset') {
+            ctx.moveTo(node.x + radius, node.y);
+            ctx.arc(node.x, node.y, radius, 0, TAU);
+            const inner = radius * 0.52;
+            ctx.moveTo(node.x + inner, node.y);
+            ctx.arc(node.x, node.y, inner, 0, TAU, true);
+            return;
+          }
+          const applied = groupName === 'other' ? radius * 0.78 : radius;
+          ctx.moveTo(node.x + applied, node.y);
+          ctx.arc(node.x, node.y, applied, 0, TAU);
         }
 
         function linkKind(link) {
@@ -1559,6 +1815,93 @@ function createConnectome(require) {
             }
           }
           return best;
+        }
+
+        /**
+         * Bounding boxes of every directory that contains a laid-out node. Runs
+         * per frame on the live positions; linear in nodes × directory depth.
+         */
+        function computeFolderBoxes() {
+          const boxes = new Map();
+          for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) continue;
+            const chain = folderChainOf(node.dir);
+            for (let c = 0; c < chain.length; c++) {
+              const id = chain[c];
+              let box = boxes.get(id);
+              if (box === undefined) {
+                box = { id: id, depth: c + 1, minX: node.x, minY: node.y, maxX: node.x, maxY: node.y };
+                boxes.set(id, box);
+              } else {
+                if (node.x < box.minX) box.minX = node.x;
+                if (node.y < box.minY) box.minY = node.y;
+                if (node.x > box.maxX) box.maxX = node.x;
+                if (node.y > box.maxY) box.maxY = node.y;
+              }
+            }
+          }
+          return boxes;
+        }
+
+        /** Folder label: the last path segment plus a trailing slash. */
+        function folderLabelOf(id) {
+          const value = String(id);
+          const base = value.slice(value.lastIndexOf('/') + 1);
+          const text = base + '/';
+          return text.length > 28 ? '…' + text.slice(text.length - 27) : text;
+        }
+
+        /**
+         * Folder/subfolder regions painted behind the graph. Parents draw first,
+         * so nested directories read as nested outlines; labels appear once the
+         * zoom level makes them legible, and the hovered node's whole folder
+         * chain is emphasized.
+         */
+        function drawFolderHulls(scale) {
+          const boxes = computeFolderBoxes();
+          if (!boxes.size || !(scale > 0)) return;
+          const ordered = [];
+          boxes.forEach(function (box) {
+            ordered.push(box);
+          });
+          ordered.sort(function (left, right) {
+            if (left.depth !== right.depth) return left.depth - right.depth;
+            return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+          });
+          const hovered = new Set(hoverNode ? folderChainOf(hoverNode.dir) : []);
+          const pad = 12 / scale;
+          const labelLine = (theme.fontPx + 6) / scale;
+          ctx.save();
+          ctx.lineWidth = 1 / scale;
+          for (let i = 0; i < ordered.length; i++) {
+            const box = ordered[i];
+            const x = box.minX - pad;
+            const y = box.minY - pad - labelLine;
+            const width = box.maxX - box.minX + pad * 2;
+            const height = box.maxY - box.minY + pad * 2 + labelLine;
+            const hot = hovered.has(box.id);
+            if (!hot && (width * scale < 26 || height * scale < 22)) continue;
+            ctx.beginPath();
+            appendRoundRect(x, y, width, height, Math.min(10 / scale, width / 2, height / 2));
+            ctx.fillStyle = theme.node;
+            ctx.globalAlpha = hot ? 0.09 : 0.035;
+            ctx.fill();
+            ctx.globalAlpha = hot ? 0.6 : 0.28;
+            ctx.strokeStyle = hot ? theme.node : theme.hull;
+            ctx.setLineDash([3 / scale, 3 / scale]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (scale > 0.32 || hot) {
+              ctx.globalAlpha = hot ? 0.95 : 0.6;
+              ctx.fillStyle = hot ? theme.label : theme.hull;
+              ctx.font = theme.font;
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'alphabetic';
+              ctx.fillText(folderLabelOf(box.id), x + 6 / scale, y + theme.fontPx + 2 / scale);
+            }
+          }
+          ctx.restore();
         }
 
         /**
@@ -1651,6 +1994,7 @@ function createConnectome(require) {
           theme.link = readColor('--dsw-alias-label-secondary', 'GrayText');
           theme.label = readColor('--dsw-alias-label-primary', 'CanvasText');
           theme.muted = readColor('--dsw-alias-label-secondary', 'GrayText');
+          theme.hull = readColor('--dsw-alias-label-secondary', 'GrayText');
           const family = computed && computed.fontFamily ? computed.fontFamily : 'sans-serif';
           const size = parseFloat(read('--ds-font-size-caption', '12px')) || 12;
           theme.fontPx = size;
@@ -1741,8 +2085,13 @@ function createConnectome(require) {
           ctx.translate(tx, ty);
           ctx.scale(scale, scale);
 
+          // Folder/subfolder outlines sit behind the graph; they are the
+          // directory structure the files come from, not another node family.
+          const foldersVisible = !propsRef.current || propsRef.current.showFolders !== false;
+          if (foldersVisible) drawFolderHulls(scale);
+
           // Dependency edges: solid for code/style relationships, dashed for
-          // documentation references. One stroke call per family.
+          // documentation and asset references. One stroke call per family.
           ctx.lineCap = 'round';
           const baseLinkAlpha = hoverActive ? 0.12 : 0.3;
           let anySolid = false;
@@ -1806,49 +2155,66 @@ function createConnectome(require) {
           }
 
           if (hoverActive) {
-            // Base nodes dimmed, then hovered node + its neighbors highlighted.
-            ctx.globalAlpha = 0.35;
-            ctx.beginPath();
-            for (let i = 0; i < nodes.length; i++) {
-              const node = nodes[i];
-              if (hoverIds.has(node.id)) continue;
-              appendCirclePath(node, scale);
+            // Base nodes dimmed per family shape, then the hovered node and its
+            // neighbors highlighted in the brand color.
+            for (let g = 0; g < NODE_GROUPS.length; g++) {
+              const groupName = NODE_GROUPS[g];
+              const list = nodesByGroup[groupName];
+              ctx.beginPath();
+              let any = false;
+              for (let i = 0; i < list.length; i++) {
+                const node = list[i];
+                if (hoverIds.has(node.id)) continue;
+                appendNodePath(node, scale, groupName);
+                any = true;
+              }
+              if (!any) continue;
+              ctx.fillStyle = theme.isolated;
+              ctx.globalAlpha = 0.35;
+              ctx.fill(groupName === 'asset' ? 'evenodd' : 'nonzero');
             }
-            ctx.fillStyle = theme.isolated;
-            ctx.fill();
             ctx.globalAlpha = 1;
             ctx.beginPath();
-            for (let i = 0; i < hoverList.length; i++) appendCirclePath(hoverList[i], scale);
+            for (let i = 0; i < hoverList.length; i++) appendNodePath(hoverList[i], scale, hoverList[i].kind);
             ctx.fillStyle = theme.node;
-            ctx.fill();
+            ctx.fill('evenodd');
           } else {
-            // Normal nodes: one path + one fill; isolated nodes: a second path.
-            ctx.beginPath();
-            let hasNormal = false;
-            for (let i = 0; i < nodes.length; i++) {
-              const node = nodes[i];
-              if (node.degree > 0) {
-                appendCirclePath(node, scale);
-                hasNormal = true;
+            // Normal nodes: one path + one fill per family; assets keep a hole so
+            // they read as rings, and isolated files paint at reduced opacity.
+            for (let g = 0; g < NODE_GROUPS.length; g++) {
+              const groupName = NODE_GROUPS[g];
+              const list = nodesByGroup[groupName];
+              const rule = groupName === 'asset' ? 'evenodd' : 'nonzero';
+              const color = groupName === 'code' || groupName === 'asset' ? theme.node : theme.muted;
+              const alpha = groupName === 'asset' ? 0.55 : groupName === 'other' ? 0.6 : 1;
+              ctx.beginPath();
+              let anyConnected = false;
+              for (let i = 0; i < list.length; i++) {
+                if (list[i].degree > 0) {
+                  appendNodePath(list[i], scale, groupName);
+                  anyConnected = true;
+                }
+              }
+              if (anyConnected) {
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.fill(rule);
+              }
+              ctx.beginPath();
+              let anyIsolated = false;
+              for (let i = 0; i < list.length; i++) {
+                if (list[i].degree === 0) {
+                  appendNodePath(list[i], scale, groupName);
+                  anyIsolated = true;
+                }
+              }
+              if (anyIsolated) {
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha * 0.45;
+                ctx.fill(rule);
               }
             }
-            if (hasNormal) {
-              ctx.fillStyle = theme.node;
-              ctx.fill();
-            }
-            ctx.beginPath();
-            let hasIsolated = false;
-            for (let i = 0; i < nodes.length; i++) {
-              const node = nodes[i];
-              if (node.degree === 0) {
-                appendCirclePath(node, scale);
-                hasIsolated = true;
-              }
-            }
-            if (hasIsolated) {
-              ctx.fillStyle = theme.isolated;
-              ctx.fill();
-            }
+            ctx.globalAlpha = 1;
           }
 
           // Ring on the hovered node, or around both ends of a hovered link
@@ -2024,19 +2390,30 @@ function createConnectome(require) {
           if (hoverNode) {
             const relations = relationsOf(hoverNode);
             const visible = relations.slice(0, NODE_TIP_RELATION_LIMIT);
+            const t = tRef.current;
+            const groupLabel = t(GROUP_LABEL_KEY[hoverNode.kind] || 'kindOther');
+            const extPart = hoverNode.ext ? ' · ' + hoverNode.ext : '';
             setTipInfo({
               mode: 'node',
               id: hoverNode.id,
               name: hoverNode.label,
               path: relativeNodePath(hoverNode, rootPath),
-              degree: hoverNode.degree || 0,
+              meta:
+                groupLabel +
+                extPart +
+                ' · ' +
+                formatBytes(hoverNode.size) +
+                ' · ' +
+                String(hoverNode.degree || 0) +
+                ' ' +
+                t('links'),
               relations: visible.map(function (row) {
                 return {
                   key: row.dir + ':' + row.node.id + ':' + row.kind,
                   node: row.node,
                   dir: row.dir,
                   name: row.node.label,
-                  kind: relationLabel(tRef.current, row.kind),
+                  kind: relationLabel(t, row.kind),
                 };
               }),
               more: Math.max(0, relations.length - visible.length),
@@ -2294,6 +2671,7 @@ function createConnectome(require) {
         if (props.apiRef) {
           props.apiRef.current = {
             fit: fitView,
+            redraw: requestDraw,
             zoomIn: function () {
               zoomBy(1.25);
             },
@@ -2348,6 +2726,23 @@ function createConnectome(require) {
       [graph]
     );
 
+    // Folder outlines are drawn by the engine (so they follow the simulation),
+    // so toggling them only asks for a repaint; it never rebuilds the graph.
+    React.useEffect(
+      function () {
+        const api = props.apiRef && props.apiRef.current;
+        if (api && typeof api.redraw === 'function') api.redraw();
+      },
+      [props.showFolders]
+    );
+
+    const kindCounts = graphKindCounts(graph);
+    const legendItems = NODE_GROUPS.map(function (group) {
+      return { group: group, label: t(GROUP_LABEL_KEY[group]), count: kindCounts[group] || 0 };
+    }).filter(function (item) {
+      return item.count > 0;
+    });
+
     return h(
       'div',
       { className: 'cnx-canvas-wrap', ref: wrapRef },
@@ -2357,6 +2752,20 @@ function createConnectome(require) {
         role: 'img',
         'aria-label': tRef.current('title'),
       }),
+      legendItems.length
+        ? h(
+            'div',
+            { className: 'cnx-legend', 'aria-hidden': 'true' },
+            legendItems.map(function (item) {
+              return h(
+                'span',
+                { key: item.group, className: 'cnx-legend-item', title: item.label + ' · ' + String(item.count) },
+                h('span', { className: 'cnx-legend-shape cnx-legend-' + item.group }),
+                item.label + ' ' + String(item.count)
+              );
+            })
+          )
+        : null,
       tipInfo
         ? h(
             'div',
@@ -2376,9 +2785,7 @@ function createConnectome(require) {
             },
             h('div', { className: 'cnx-tip-name' }, tipInfo.name),
             h('div', { className: 'cnx-tip-path' }, tipInfo.path),
-            tipInfo.mode === 'link'
-              ? h('div', { className: 'cnx-tip-meta' }, tipInfo.meta)
-              : h('div', { className: 'cnx-tip-meta' }, String(tipInfo.degree) + ' ' + tRef.current('links')),
+            h('div', { className: 'cnx-tip-meta' }, tipInfo.meta),
             tipInfo.mode === 'node'
               ? h(
                   'div',
